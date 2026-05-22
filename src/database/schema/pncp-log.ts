@@ -1,16 +1,18 @@
 import type { Generated } from 'kysely';
 
-// ⚠️ PLACEHOLDER — substituir nomes de colunas pelos reais após confirmar com DBA
 export interface PncpLogServicoTable {
-  id: Generated<number>;      // identity — gerado pelo banco, omitido automaticamente em INSERT
-  servico: string;
-  entidade: string;
-  registro_id: string;
-  orgao_id: string;
-  status_code: number | null;
-  sucesso: number;            // 0 = falhou, 1 = sucesso
-  payload_enviado: string | null;  // ⚠️ pode conter dados sensíveis — avaliar mascaramento antes de salvar
-  resposta_pncp: string | null;    // ⚠️ pode conter tokens — nunca logar fora do banco
-  mensagem_erro: string | null;
-  criado_em: Generated<Date>; // default GETDATE() no banco, omitido automaticamente em INSERT
+  ls_codigo: Generated<number>;
+  ls_usuario: number | null;
+  ls_acao: string | null;
+  ls_json: string | null;
+  ls_cod_erro: number | null;
+  ls_mensagem: string | null;
+  ls_url: string | null;
+  ls_dt_registro: Generated<Date>;
+  ser_id: number | null;
+  ls_descricao: string | null;
+  ls_caminho_ftp: string | null;
+  ls_numeroprocesso: string | null;
+  ls_id_pncp: number | null;
+  ls_orgao: number | null;
 }
