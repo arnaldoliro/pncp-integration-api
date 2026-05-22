@@ -1,7 +1,18 @@
 import { Kysely, MssqlDialect } from 'kysely';
 import * as Tedious from 'tedious';
 import * as Tarn from 'tarn';
-import type { Database } from './schema/database.js';
+import { env } from '../config/env.config.js';
+import type { PncpServicosTable } from './schema/pncp-servicos.js';
+import type { PncpLogServicoTable } from './schema/pncp-log.js';
+import type { VwContratacaoView } from './schema/views/vw-contratacao.js';
+import type { VwDocumentosContratacaoView } from './schema/views/vw-documentos-contratacao.js';
+
+interface Database {
+  PNCP_SERVICOS: PncpServicosTable;
+  PNCP_LOG_SERVICO: PncpLogServicoTable;
+  vw_Inserir_Contratacao_6_3_1: VwContratacaoView;
+  vw_Documentos_ContratacaoEditalAviso_6_3: VwDocumentosContratacaoView;
+}
 
 function createDialect(): MssqlDialect {
   return new MssqlDialect({
@@ -16,19 +27,19 @@ function createDialect(): MssqlDialect {
       ...Tedious,
       connectionFactory: () =>
         new Tedious.Connection({
-          server: process.env.DB_SERVER ?? '',
+          server: env.db.server,
           authentication: {
             type: 'default',
             options: {
-              userName: process.env.DB_USER ?? '',
-              password: process.env.DB_PASSWORD ?? '',
+              userName: env.db.user,
+              password: env.db.password,
             },
           },
           options: {
-            port: parseInt(process.env.DB_PORT ?? '1433', 10),
-            database: process.env.DB_DATABASE ?? '',
-            encrypt: process.env.DB_ENCRYPT === 'true',
-            trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === 'true',
+            port: env.db.port,
+            database: env.db.database,
+            encrypt: env.db.encrypt,
+            trustServerCertificate: env.db.trustServerCert,
           },
         }),
     },
