@@ -51,7 +51,11 @@ function buildEnv() {
     throw new Error(`Configuração inválida:\n${errors.join('\n')}`);
   }
 
-  return { port, nodeEnv, db, pncp };
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : false;
+
+  return { port, nodeEnv, db, pncp, allowedOrigins };
 }
 
 export const env = buildEnv();
