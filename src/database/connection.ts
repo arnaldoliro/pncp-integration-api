@@ -7,10 +7,12 @@ import type { PncpLogServicoTable } from './schema/pncp-log.js';
 import type { VwContratacaoView } from './schema/views/vw-contratacao.js';
 import type { VwDocumentosContratacaoView } from './schema/views/vw-documentos-contratacao.js';
 import type { PncpControleDadosTable } from './schema/pncp-controle-dados.js';
+import type { PncpTabelaContratacoesTable } from './schema/pncp-tabela-contratacoes.js';
 
 interface Database {
   PNCP_SERVICOS: PncpServicosTable;
   PNCP_LOG_SERVICO: PncpLogServicoTable;
+  PNCP_TABELA_CONTRATACOES: PncpTabelaContratacoesTable;
   vw_Inserir_Contratacao_6_3_1: VwContratacaoView;
   vw_Documentos_ContratacaoEditalAviso_6_3: VwDocumentosContratacaoView;
   PNCP_CONTROLE_DADOS: PncpControleDadosTable;

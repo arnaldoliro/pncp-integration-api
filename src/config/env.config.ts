@@ -43,8 +43,6 @@ function buildEnv() {
     timeout: requireInt('PNCP_TIMEOUT', errors),
     retryAttempts: requireInt('PNCP_RETRY_ATTEMPTS', errors),
     authUrl: requireEnv('PNCP_AUTH_URL', errors),
-    clientId: requireEnv('PNCP_CLIENT_ID', errors),
-    clientSecret: requireEnv('PNCP_CLIENT_SECRET', errors), // nunca logar
   };
 
   if (errors.length) {

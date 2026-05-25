@@ -100,8 +100,8 @@ export class PncpHttpClient {
     return this.request('PATCH', url, body);
   }
 
-  delete(url: string): Promise<unknown> {
-    return this.request('DELETE', url);
+  delete(url: string, body?: unknown): Promise<unknown> {
+    return this.request('DELETE', url, body);
   }
 
   get(url: string): Promise<unknown> {
