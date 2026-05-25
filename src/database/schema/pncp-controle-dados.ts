@@ -5,4 +5,5 @@ export interface PncpControleDadosTable {
   con_id: Generated<number>;
   con_usuario: string;
   con_senha: string; // ⚠️ nunca logar ou expor
+  con_link_principal: string | null;
 }
