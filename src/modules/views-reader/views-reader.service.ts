@@ -1,10 +1,9 @@
 import {
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
 } from '@nestjs/common';
-import { sql } from 'kysely';
-import { db } from '../../database/connection.js';
+import { Kysely, sql } from 'kysely';
+import type { Database } from '../../database/connection.js';
 import { VIEW_MAPPINGS } from './view-mappings.js';
 
 @Injectable()
@@ -12,11 +11,12 @@ export class ViewsReaderService {
   async buscar(
     viewName: string,
     orgaoId: string,
-    id?: string,
+    id: string | undefined,
+    db: Kysely<Database>,
   ): Promise<Record<string, unknown>[]> {
     const mapping = VIEW_MAPPINGS[viewName];
     if (!mapping) {
-      throw new NotFoundException(
+      throw new InternalServerErrorException(
         `Mapeamento não encontrado para a view "${viewName}". Adicione uma entrada em view-mappings.ts.`,
       );
     }

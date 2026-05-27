@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { db } from '../../database/connection.js';
+import { Kysely } from 'kysely';
+import type { Database } from '../../database/connection.js';
 
 export interface GravarLogDto {
   ls_acao: string;
@@ -15,7 +16,7 @@ export interface GravarLogDto {
 
 @Injectable()
 export class PncpLogService {
-  async gravar(dados: GravarLogDto): Promise<void> {
+  async gravar(dados: GravarLogDto, db: Kysely<Database>): Promise<void> {
     await db.insertInto('PNCP_LOG_SERVICO').values(dados).execute();
   }
 }

@@ -1,13 +1,17 @@
-import { IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsNotEmpty, IsNumberString, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 export class ServicoRequestDto {
   @IsString()
   @IsNotEmpty()
-  tel_descricao_servico: string;
+  tel_descricao_servico!: string;
+
+  @IsNumberString()
+  @IsNotEmpty()
+  ORG_COD!: string;
 
   @IsString()
   @IsNotEmpty()
-  ORG_COD: string;
+  database!: string;
 
   @IsString()
   @IsOptional()

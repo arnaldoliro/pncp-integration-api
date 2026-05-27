@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { db } from '../../database/connection.js';
+import { Kysely } from 'kysely';
+import type { Database } from '../../database/connection.js';
 
 export interface GravarSequencialDto {
   con_compra_id: string;
@@ -13,6 +14,7 @@ export class PncpDadosContratacoes {
   async buscarSequencial(
     conCompraId: string,
     conOrgao: number,
+    db: Kysely<Database>,
   ): Promise<{ con_sequencial: number; con_ano: string } | null> {
     const row = await db
       .selectFrom('PNCP_TABELA_CONTRATACOES')
@@ -25,7 +27,7 @@ export class PncpDadosContratacoes {
     return { con_sequencial: row.con_sequencial, con_ano: row.con_ano };
   }
 
-  async gravarSequencial(data: GravarSequencialDto): Promise<void> {
+  async gravarSequencial(data: GravarSequencialDto, db: Kysely<Database>): Promise<void> {
     await db
       .insertInto('PNCP_TABELA_CONTRATACOES')
       .values({
@@ -37,7 +39,7 @@ export class PncpDadosContratacoes {
       .execute();
   }
 
-  async remover(conCompraId: string, conOrgao: number): Promise<void> {
+  async remover(conCompraId: string, conOrgao: number, db: Kysely<Database>): Promise<void> {
     await db
       .deleteFrom('PNCP_TABELA_CONTRATACOES')
       .where('con_compra_id', '=', conCompraId)

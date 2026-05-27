@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { db } from '../../database/connection.js';
+import { Kysely } from 'kysely';
 import type { Selectable } from 'kysely';
+import type { Database } from '../../database/connection.js';
 import type { PncpServicosTable } from '../../database/schema/pncp-servicos.js';
 
 @Injectable()
 export class ServicosService {
   async resolverPorNome(
     nomeServico: string,
+    db: Kysely<Database>,
   ): Promise<Selectable<PncpServicosTable>> {
     const servico = await db
       .selectFrom('PNCP_SERVICOS')

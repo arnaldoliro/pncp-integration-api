@@ -1,3 +1,5 @@
+import { InternalServerErrorException } from '@nestjs/common';
+
 function substituir(
   value: unknown,
   context: Record<string, unknown>,
@@ -11,7 +13,7 @@ function substituir(
     return value.map((v) => substituir(v, context));
   }
   if (value !== null && typeof value === 'object') {
-    const result: Record<string, unknown> = {};
+    const result = Object.create(null) as Record<string, unknown>;
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       result[k] = substituir(v, context);
     }
@@ -24,6 +26,13 @@ export function buildPayload(
   templateJson: string,
   context: Record<string, unknown>,
 ): Record<string, unknown> {
-  const template = JSON.parse(templateJson) as unknown;
+  let template: unknown;
+  try {
+    template = JSON.parse(templateJson);
+  } catch {
+    throw new InternalServerErrorException(
+      'tel_json_consumo contém JSON inválido. Corrija a configuração em PNCP_SERVICOS.',
+    );
+  }
   return substituir(template, context) as Record<string, unknown>;
 }

@@ -11,7 +11,13 @@ export function buildUrl(
         `Placeholder "{${key}}" não encontrado no contexto para montar a URL.`,
       );
     }
-    return String(context[key]);
+    const value = context[key];
+    if (value === null || value === undefined) {
+      throw new InternalServerErrorException(
+        `Placeholder "{${key}}" tem valor nulo no contexto para montar a URL.`,
+      );
+    }
+    return encodeURIComponent(String(value));
   });
   return baseUrl + interpolated;
 }

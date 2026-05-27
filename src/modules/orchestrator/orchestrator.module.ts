@@ -6,9 +6,17 @@ import { ViewsReaderModule } from '../views-reader/views-reader.module.js';
 import { PncpClientModule } from '../pncp-client/pncp-client.module.js';
 import { PncpLogModule } from '../pncp-log/pncp-log.module.js';
 import { PncpDadosContratacoesModule } from '../pncp-dados-contratacoes/pncp-dados-contratacoes.module.js';
+import { DatabaseDiscoveryModule } from '../database-discovery/database-discovery.module.js';
 
 @Module({
-  imports: [ServicosModule, ViewsReaderModule, PncpClientModule, PncpLogModule, PncpDadosContratacoesModule],
+  imports: [
+    ServicosModule,
+    ViewsReaderModule,
+    PncpClientModule,
+    PncpLogModule,
+    PncpDadosContratacoesModule,
+    DatabaseDiscoveryModule,
+  ],
   controllers: [OrchestratorController],
   providers: [OrchestratorService],
 })
