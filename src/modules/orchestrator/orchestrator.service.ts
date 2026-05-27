@@ -1,16 +1,19 @@
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { db } from '../../database/connection.js';
+import { Kysely } from 'kysely';
+import type { Database } from '../../database/connection.js';
 import { env } from '../../config/env.config.js';
 import { ServicosService } from '../servicos/servicos.service.js';
 import { ViewsReaderService } from '../views-reader/views-reader.service.js';
 import { PncpHttpClient } from '../pncp-client/pncp-http-client.service.js';
 import { PncpLogService, type GravarLogDto } from '../pncp-log/pncp-log.service.js';
 import { PncpDadosContratacoes } from '../pncp-dados-contratacoes/pncp-dados-contratacoes.service.js';
+import { DatabasePoolService } from '../database-discovery/database-pool.service.js';
 import type { ServicoRequestDto } from '../../shared/types/servico-request.dto.js';
 import type {
   OrchestratorDetalhe,
@@ -31,11 +34,15 @@ export class OrchestratorService {
     private readonly pncpHttpClient: PncpHttpClient,
     private readonly pncpLogService: PncpLogService,
     private readonly pncpDadosContratacoes: PncpDadosContratacoes,
+    private readonly databasePool: DatabasePoolService,
   ) {}
 
   async executar(dto: ServicoRequestDto): Promise<OrchestratorResult> {
+    const db: Kysely<Database> = await this.databasePool.obterDatabase(dto.database);
+
     const config = await this.servicosService.resolverPorNome(
       dto.tel_descricao_servico,
+      db,
     );
 
     const controle = await db
@@ -50,11 +57,17 @@ export class OrchestratorService {
         'Base URL do PNCP não configurada (con_link_principal e PNCP_BASE_URL ausentes).',
       );
     }
+    if (!baseUrl.startsWith('https://')) {
+      throw new InternalServerErrorException(
+        'Base URL do PNCP inválida: deve começar com https://',
+      );
+    }
 
     const records = await this.viewsReaderService.buscar(
       config.tel_entidade,
       dto.ORG_COD,
       dto.LIC_COD,
+      db,
     );
 
     const detalhes: OrchestratorDetalhe[] = [];
@@ -93,6 +106,7 @@ export class OrchestratorService {
           const existente = await this.pncpDadosContratacoes.buscarSequencial(
             conCompraId,
             conOrgao,
+            db,
           );
           if (existente) {
             ignorados++;
@@ -110,6 +124,7 @@ export class OrchestratorService {
             await this.pncpDadosContratacoes.buscarSequencial(
               conCompraId,
               conOrgao,
+              db,
             );
           if (!sequencialLocal) {
             throw new InternalServerErrorException(
@@ -124,10 +139,15 @@ export class OrchestratorService {
 
         let response: unknown;
         if (metodo === 'DELETE') {
+          if (!dto.justificativa) {
+            throw new BadRequestException(
+              `O campo "justificativa" é obrigatório para operações DELETE ("${dto.tel_descricao_servico}").`,
+            );
+          }
           body = { justificativa: dto.justificativa };
-          response = await this.pncpHttpClient.delete(url, body);
+          response = await this.pncpHttpClient.delete(url, db, body);
         } else if (metodo === 'GET') {
-          response = await this.pncpHttpClient.get(url);
+          response = await this.pncpHttpClient.get(url, db);
         } else {
           if (!config.tel_json_consumo) {
             throw new InternalServerErrorException(
@@ -137,11 +157,11 @@ export class OrchestratorService {
           body = buildPayload(config.tel_json_consumo, context);
 
           if (metodo === 'POST') {
-            response = await this.pncpHttpClient.post(url, body);
+            response = await this.pncpHttpClient.post(url, body, db);
           } else if (metodo === 'PUT') {
-            response = await this.pncpHttpClient.put(url, body);
+            response = await this.pncpHttpClient.put(url, body, db);
           } else if (metodo === 'PATCH') {
-            response = await this.pncpHttpClient.patch(url, body);
+            response = await this.pncpHttpClient.patch(url, body, db);
           } else {
             throw new InternalServerErrorException(
               `Método HTTP desconhecido: ${metodo}`,
@@ -152,65 +172,72 @@ export class OrchestratorService {
         if (metodo === 'POST') {
           const compraUri = (response as { compraUri?: string } | null)
             ?.compraUri;
-          if (compraUri) {
-            const parts = compraUri.split('/');
-            const conSequencial = parseInt(parts[parts.length - 1], 10);
-            const conAno = parts[parts.length - 2];
-            if (!isNaN(conSequencial) && conAno) {
-              await this.pncpDadosContratacoes.gravarSequencial({
-                con_compra_id: conCompraId,
-                con_orgao: conOrgao,
-                con_sequencial: conSequencial,
-                con_ano: conAno,
-              });
-              lsIdPncp = conSequencial;
-            } else {
-              this.logger.warn(
-                `compraUri com formato inesperado na resposta do PNCP: ${compraUri}`,
-              );
-            }
-          } else {
-            this.logger.warn(
-              `Resposta POST sem compraUri para LIC_COD "${conCompraId}"`,
+          if (!compraUri) {
+            throw new InternalServerErrorException(
+              `Resposta POST sem compraUri para LIC_COD "${conCompraId}". Sequencial não pôde ser salvo.`,
             );
           }
+          const parts = compraUri.split('/');
+          const conSequencial = parseInt(parts[parts.length - 1], 10);
+          const conAno = parts[parts.length - 2];
+          if (isNaN(conSequencial) || !conAno) {
+            throw new InternalServerErrorException(
+              `compraUri com formato inesperado na resposta do PNCP: ${compraUri}`,
+            );
+          }
+          await this.pncpDadosContratacoes.gravarSequencial(
+            {
+              con_compra_id: conCompraId,
+              con_orgao: conOrgao,
+              con_sequencial: conSequencial,
+              con_ano: conAno,
+            },
+            db,
+          );
+          lsIdPncp = conSequencial;
         }
 
         if (metodo === 'DELETE') {
-          await this.pncpDadosContratacoes.remover(conCompraId, conOrgao);
+          await this.pncpDadosContratacoes.remover(conCompraId, conOrgao, db);
         }
 
         sucesso = true;
         enviados++;
 
-        await this.gravarLog({
-          ls_acao: dto.tel_descricao_servico,
-          ls_url: url,
-          ls_cod_erro: null,
-          ls_mensagem: null,
-          ls_json: body !== undefined ? JSON.stringify(body) : null,
-          ser_id: config.ser_id,
-          ls_orgao: conOrgao || null,
-          ls_id_pncp: lsIdPncp,
-          ls_numeroprocesso: null,
-        });
+        await this.gravarLog(
+          {
+            ls_acao: dto.tel_descricao_servico,
+            ls_url: url,
+            ls_cod_erro: null,
+            ls_mensagem: null,
+            ls_json: body !== undefined ? JSON.stringify(body) : null,
+            ser_id: config.ser_id,
+            ls_orgao: conOrgao || null,
+            ls_id_pncp: lsIdPncp,
+            ls_numeroprocesso: null,
+          },
+          db,
+        );
       } catch (error) {
         erros++;
         mensagemErro = (error as Error).message;
         const codErro =
           error instanceof HttpException ? error.getStatus() : 500;
 
-        await this.gravarLog({
-          ls_acao: dto.tel_descricao_servico,
-          ls_url: url,
-          ls_cod_erro: codErro,
-          ls_mensagem: mensagemErro,
-          ls_json: body !== undefined ? JSON.stringify(body) : null,
-          ser_id: config.ser_id,
-          ls_orgao: conOrgao || null,
-          ls_id_pncp: null,
-          ls_numeroprocesso: null,
-        });
+        await this.gravarLog(
+          {
+            ls_acao: dto.tel_descricao_servico,
+            ls_url: url,
+            ls_cod_erro: codErro,
+            ls_mensagem: mensagemErro,
+            ls_json: body !== undefined ? JSON.stringify(body) : null,
+            ser_id: config.ser_id,
+            ls_orgao: conOrgao || null,
+            ls_id_pncp: null,
+            ls_numeroprocesso: null,
+          },
+          db,
+        );
       }
 
       detalhes.push({ id: conCompraId, sucesso, mensagem: mensagemErro });
@@ -219,9 +246,9 @@ export class OrchestratorService {
     return { total: records.length, enviados, erros, ignorados, detalhes };
   }
 
-  private async gravarLog(dados: GravarLogDto): Promise<void> {
+  private async gravarLog(dados: GravarLogDto, db: Kysely<Database>): Promise<void> {
     try {
-      await this.pncpLogService.gravar(dados);
+      await this.pncpLogService.gravar(dados, db);
     } catch (error) {
       this.logger.warn(`Falha ao gravar log PNCP: ${(error as Error).message}`);
     }

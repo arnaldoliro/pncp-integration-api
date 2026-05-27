@@ -1,3 +1,12 @@
+export interface ServerConfig {
+  server: string;
+  port: number;
+  user: string;
+  password: string;
+  encrypt: boolean;
+  trustServerCert: boolean;
+}
+
 function requireEnv(key: string, errors: string[]): string {
   const value = process.env[key];
   if (!value) errors.push(`Variável de ambiente obrigatória ausente: ${key}`);
@@ -22,21 +31,49 @@ function parseBool(key: string): boolean {
   return process.env[key] === 'true';
 }
 
+function buildServers(encrypt: boolean, trustServerCert: boolean, errors: string[]): ServerConfig[] {
+  const servers: ServerConfig[] = [];
+  let n = 1;
+
+  while (process.env[`DB_SERVER_${n}`]) {
+    const server = process.env[`DB_SERVER_${n}`]!;
+    const portRaw = process.env[`DB_PORT_${n}`];
+    const port = portRaw ? parseInt(portRaw, 10) : 1433;
+    const user = process.env[`DB_USER_${n}`];
+    const password = process.env[`DB_PASSWORD_${n}`];
+
+    if (!user) errors.push(`Variável de ambiente obrigatória ausente: DB_USER_${n}`);
+    if (!password) errors.push(`Variável de ambiente obrigatória ausente: DB_PASSWORD_${n}`);
+
+    servers.push({
+      server,
+      port: isNaN(port) ? 1433 : port,
+      user: user ?? '',
+      password: password ?? '',
+      encrypt,
+      trustServerCert,
+    });
+    n++;
+  }
+
+  if (servers.length === 0) {
+    errors.push(
+      'Nenhum servidor SQL Server configurado. Defina DB_SERVER_1, DB_PORT_1, DB_USER_1, DB_PASSWORD_1.',
+    );
+  }
+
+  return servers;
+}
+
 function buildEnv() {
   const errors: string[] = [];
 
   const port = requireInt('PORT', errors);
   const nodeEnv = process.env.NODE_ENV ?? 'development';
 
-  const db = {
-    server: requireEnv('DB_SERVER', errors),
-    port: requireInt('DB_PORT', errors),
-    database: requireEnv('DB_DATABASE', errors),
-    user: requireEnv('DB_USER', errors),
-    password: requireEnv('DB_PASSWORD', errors), // nunca logar
-    encrypt: parseBool('DB_ENCRYPT'),
-    trustServerCert: parseBool('DB_TRUST_SERVER_CERT'),
-  };
+  const encrypt = parseBool('DB_ENCRYPT');
+  const trustServerCert = parseBool('DB_TRUST_SERVER_CERT');
+  const servers = buildServers(encrypt, trustServerCert, errors);
 
   const pncp = {
     baseUrl: requireEnv('PNCP_BASE_URL', errors),
@@ -53,7 +90,9 @@ function buildEnv() {
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
     : false;
 
-  return { port, nodeEnv, db, pncp, allowedOrigins };
+  const apiKey = requireEnv('API_KEY', errors);
+
+  return { port, nodeEnv, servers, pncp, allowedOrigins, apiKey };
 }
 
 export const env = buildEnv();
