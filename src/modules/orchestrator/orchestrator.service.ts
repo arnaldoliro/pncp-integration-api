@@ -23,6 +23,8 @@ import { buildPayload } from './payload-builder.js';
 import { buildUrl } from './url-builder.js';
 
 const METODOS_COM_SEQUENCIAL = new Set(['PUT', 'PATCH', 'DELETE']);
+const ITENS_VIEW = 'vw_ContratoEditalAviso_Item_6_3';
+const ITENS_SERVICO_NOME = '6.3.10 Inserir Itens a uma Contratação';
 
 @Injectable()
 export class OrchestratorService {
@@ -44,7 +46,6 @@ export class OrchestratorService {
       dto.tel_descricao_servico,
       db,
     );
-
     const controle = await db
       .selectFrom('PNCP_CONTROLE_DADOS')
       .select('con_link_principal')
@@ -69,12 +70,26 @@ export class OrchestratorService {
       dto.LIC_COD,
       db,
     );
-
     const detalhes: OrchestratorDetalhe[] = [];
     let enviados = 0;
     let erros = 0;
     let ignorados = 0;
     const conOrgao = parseInt(dto.ORG_COD, 10);
+    const metodoServico = config.ser_tipo?.toUpperCase() ?? null;
+
+    await this.gravarLog({
+      ls_usuario: dto.usuario,
+      ls_acao: metodoServico,
+      ls_url: null,
+      ls_cod_erro: 1,
+      ls_mensagem: `Iniciando Serviço ${dto.tel_descricao_servico}`,
+      ls_descricao: `Iniciando o Serviço de ${dto.tel_descricao_servico}`,
+      ls_json: null,
+      ser_id: config.ser_id,
+      ls_orgao: conOrgao || null,
+      ls_id_pncp: null,
+      ls_numeroprocesso: dto.LIC_COD ?? null,
+    }, db);
 
     for (const record of records) {
       const conCompraId = String(record['LIC_COD'] ?? dto.LIC_COD ?? '');
@@ -92,7 +107,12 @@ export class OrchestratorService {
       let body: unknown;
       let sucesso = false;
       let mensagemErro: string | undefined;
+      let descricaoErro: string | null = null;
       let lsIdPncp: number | null = null;
+      let documentosAdicionais: Record<string, unknown>[] = [];
+      let primeiroDocumento: Record<string, unknown> | null = null;
+      let itensEnviados: Record<string, unknown>[] = [];
+      let pncpResponse: { status: number; body: unknown } | undefined;
 
       try {
         const metodo = config.ser_tipo?.toUpperCase();
@@ -137,31 +157,81 @@ export class OrchestratorService {
 
         url = buildUrl(config.ser_link, baseUrl, context);
 
-        let response: unknown;
-        if (metodo === 'DELETE') {
+          if (metodo === 'DELETE') {
           if (!dto.justificativa) {
             throw new BadRequestException(
               `O campo "justificativa" é obrigatório para operações DELETE ("${dto.tel_descricao_servico}").`,
             );
           }
           body = { justificativa: dto.justificativa };
-          response = await this.pncpHttpClient.delete(url, db, body);
+          pncpResponse = await this.pncpHttpClient.delete(url, db, body);
         } else if (metodo === 'GET') {
-          response = await this.pncpHttpClient.get(url, db);
+          pncpResponse = await this.pncpHttpClient.get(url, db);
         } else {
           if (!config.tel_json_consumo) {
             throw new InternalServerErrorException(
               `tel_json_consumo não configurado para "${dto.tel_descricao_servico}".`,
             );
           }
+
+          if (config.tel_entidade === 'vw_Inserir_Contratacao_6_3_1') {
+            const itensConfig = await this.servicosService.resolverPorNome(ITENS_SERVICO_NOME, db);
+            if (!itensConfig.tel_json_consumo) {
+              throw new InternalServerErrorException(
+                `tel_json_consumo não configurado para o serviço "${ITENS_SERVICO_NOME}".`,
+              );
+            }
+            const itensRecords = await this.viewsReaderService.buscar(
+              ITENS_VIEW,
+              dto.ORG_COD,
+              conCompraId,
+              db,
+            );
+            itensEnviados = itensRecords.map((row) =>
+              buildPayload(itensConfig.tel_json_consumo!, row as Record<string, unknown>),
+            );
+            context['itensCompra'] = itensEnviados;
+          }
+
           body = buildPayload(config.tel_json_consumo, context);
 
           if (metodo === 'POST') {
-            response = await this.pncpHttpClient.post(url, body, db);
+            if (config.ser_arquivo) {
+              const docViewName = config.tel_entidade_doc;
+              if (!docViewName) {
+                throw new InternalServerErrorException(
+                  `tel_entidade_doc não configurado para "${dto.tel_descricao_servico}".`,
+                );
+              }
+              const documentos = await this.viewsReaderService.buscar(docViewName, dto.ORG_COD, conCompraId, db);
+              if (documentos.length === 0) {
+                throw new InternalServerErrorException(
+                  `Nenhum documento encontrado na view "${docViewName}" para LIC_COD "${conCompraId}".`,
+                );
+              }
+              const primeiro = documentos[0];
+              primeiroDocumento = primeiro;
+              documentosAdicionais = documentos.slice(1);
+              pncpResponse = await this.pncpHttpClient.postMultipart(
+                url,
+                body as Record<string, unknown>,
+                {
+                  buffer: primeiro['arquivo'] as Buffer,
+                  titulo: String(primeiro['TituloDocumento'] ?? ''),
+                  tipoDocumentoId: Number(primeiro['TipoDocumentoId'] ?? 0),
+                  extensao: String(primeiro['Extencao'] ?? 'pdf'),
+                },
+                db,
+                config.sin_ser_nome_cabecalho_json ?? 'compra',
+                config.sin_ser_nome_cabecalho_arquivo ?? 'documento',
+              );
+            } else {
+              pncpResponse = await this.pncpHttpClient.post(url, body, db);
+            }
           } else if (metodo === 'PUT') {
-            response = await this.pncpHttpClient.put(url, body, db);
+            pncpResponse = await this.pncpHttpClient.put(url, body, db);
           } else if (metodo === 'PATCH') {
-            response = await this.pncpHttpClient.patch(url, body, db);
+            pncpResponse = await this.pncpHttpClient.patch(url, body, db);
           } else {
             throw new InternalServerErrorException(
               `Método HTTP desconhecido: ${metodo}`,
@@ -170,7 +240,7 @@ export class OrchestratorService {
         }
 
         if (metodo === 'POST') {
-          const compraUri = (response as { compraUri?: string } | null)
+          const compraUri = (pncpResponse?.body as { compraUri?: string } | null)
             ?.compraUri;
           if (!compraUri) {
             throw new InternalServerErrorException(
@@ -195,6 +265,51 @@ export class OrchestratorService {
             db,
           );
           lsIdPncp = conSequencial;
+
+          if (primeiroDocumento !== null) {
+            await this.pncpDadosContratacoes.gravarDocumento({
+              sin_con_data_alteracao: new Date(),
+              sin_con_ano: conAno,
+              sin_con_numerocompra: String(context['numeroCompra'] ?? ''),
+              sin_con_nome_arquivo: String(primeiroDocumento['TituloDocumento'] ?? ''),
+              sequencialarquivo: null,
+            }, db);
+          }
+
+          if (documentosAdicionais.length > 0) {
+            const arquivosBaseUrl = `${url}/${conAno}/${conSequencial}/arquivos`;
+            for (const doc of documentosAdicionais) {
+              const docResp = await this.pncpHttpClient.postArquivo(
+                arquivosBaseUrl,
+                {
+                  buffer: doc['arquivo'] as Buffer,
+                  titulo: String(doc['TituloDocumento'] ?? ''),
+                  tipoDocumentoId: Number(doc['TipoDocumentoId'] ?? 0),
+                  extensao: String(doc['Extencao'] ?? 'pdf'),
+                },
+                db,
+              );
+              const docSeq = (docResp.body as { sequencialArquivo?: number } | null)?.sequencialArquivo ?? null;
+              await this.pncpDadosContratacoes.gravarDocumento({
+                sin_con_data_alteracao: new Date(),
+                sin_con_ano: conAno,
+                sin_con_numerocompra: String(context['numeroCompra'] ?? ''),
+                sin_con_nome_arquivo: String(doc['TituloDocumento'] ?? ''),
+                sequencialarquivo: docSeq,
+              }, db);
+            }
+          }
+
+          for (const item of itensEnviados) {
+            await this.pncpDadosContratacoes.gravarItem({
+              sin_ite_data_alteracao: new Date(),
+              sin_ite_ano: conAno,
+              sin_ite_numeroitem: String(item['numeroItem'] ?? ''),
+              sin_ite_numeropncp: String(conSequencial),
+              sin_ite_numerocompra: String(context['numeroCompra'] ?? ''),
+              ite_id_situacao: 'ENVIADO',
+            }, db);
+          }
         }
 
         if (metodo === 'DELETE') {
@@ -203,38 +318,62 @@ export class OrchestratorService {
 
         sucesso = true;
         enviados++;
-
         await this.gravarLog(
           {
-            ls_acao: dto.tel_descricao_servico,
+            ls_usuario: dto.usuario,
+            ls_acao: config.ser_tipo?.toUpperCase() ?? null,
             ls_url: url,
-            ls_cod_erro: null,
-            ls_mensagem: null,
+            ls_cod_erro: pncpResponse?.status ?? null,
+            ls_mensagem: pncpResponse?.body !== undefined && pncpResponse.body !== null
+              ? JSON.stringify(pncpResponse.body)
+              : null,
+            ls_descricao: 'Ação Realizada com Sucesso!',
             ls_json: body !== undefined ? JSON.stringify(body) : null,
             ser_id: config.ser_id,
             ls_orgao: conOrgao || null,
             ls_id_pncp: lsIdPncp,
-            ls_numeroprocesso: null,
+            ls_numeroprocesso: context['numeroCompra'] ? String(context['numeroCompra']) : null,
           },
           db,
         );
       } catch (error) {
         erros++;
-        mensagemErro = (error as Error).message;
+        if (error instanceof HttpException) {
+          const resp = error.getResponse() as { body?: string; message?: string | string[] };
+          const bodyText = resp.body
+            ?? (Array.isArray(resp.message) ? resp.message.join(', ') : resp.message)
+            ?? error.message;
+          mensagemErro = `HTTP ${error.getStatus()}: ${bodyText}`;
+          if (resp.body) {
+            try {
+              const parsed = JSON.parse(resp.body) as { message?: string };
+              descricaoErro = parsed.message ?? resp.body;
+            } catch {
+              descricaoErro = resp.body;
+            }
+          } else {
+            descricaoErro = Array.isArray(resp.message) ? resp.message.join(', ') : (resp.message ?? error.message);
+          }
+        } else {
+          mensagemErro = (error as Error).message;
+          descricaoErro = mensagemErro;
+        }
         const codErro =
           error instanceof HttpException ? error.getStatus() : 500;
 
         await this.gravarLog(
           {
-            ls_acao: dto.tel_descricao_servico,
+            ls_usuario: dto.usuario,
+            ls_acao: 'ERRO',
             ls_url: url,
             ls_cod_erro: codErro,
-            ls_mensagem: mensagemErro,
+            ls_mensagem: mensagemErro ?? null,
+            ls_descricao: descricaoErro,
             ls_json: body !== undefined ? JSON.stringify(body) : null,
             ser_id: config.ser_id,
             ls_orgao: conOrgao || null,
             ls_id_pncp: null,
-            ls_numeroprocesso: null,
+            ls_numeroprocesso: context['numeroCompra'] ? String(context['numeroCompra']) : null,
           },
           db,
         );
@@ -242,6 +381,20 @@ export class OrchestratorService {
 
       detalhes.push({ id: conCompraId, sucesso, mensagem: mensagemErro });
     }
+
+    await this.gravarLog({
+      ls_usuario: dto.usuario,
+      ls_acao: metodoServico,
+      ls_url: null,
+      ls_cod_erro: 2,
+      ls_mensagem: `Finalizando Serviço ${dto.tel_descricao_servico}`,
+      ls_descricao: `Finalizando o Serviço de ${dto.tel_descricao_servico}`,
+      ls_json: null,
+      ser_id: config.ser_id,
+      ls_orgao: conOrgao || null,
+      ls_id_pncp: null,
+      ls_numeroprocesso: dto.LIC_COD ?? null,
+    }, db);
 
     return { total: records.length, enviados, erros, ignorados, detalhes };
   }

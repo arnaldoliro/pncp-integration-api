@@ -12,4 +12,8 @@ export const VIEW_MAPPINGS: Record<string, ViewMapping> = {
     idColumn: 'LIC_COD',
     orgaoColumn: 'codigoOrgao',
   },
+  vw_ContratoEditalAviso_Item_6_3: {
+    idColumn: 'LIC_COD',
+    orgaoColumn: 'codigoOrgao',
+  },
 };

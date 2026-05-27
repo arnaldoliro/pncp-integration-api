@@ -13,7 +13,6 @@ export class DatabaseDiscoveryService {
   async encontrarConexao(databaseName: string): Promise<ServerConfig> {
     const cached = this.cache.get(databaseName);
     if (cached && Date.now() - cached.at < this.TTL) {
-      this.logger.debug(`Cache hit para database "${databaseName}"`);
       return cached.config;
     }
 
@@ -58,12 +57,11 @@ export class DatabaseDiscoveryService {
         successfulProbes++;
 
         if (result.rows.length > 0) {
-          this.logger.log(`Database "${databaseName}" encontrado em ${serverConfig.server}`);
           this.cache.set(databaseName, { config: serverConfig, at: Date.now() });
           return serverConfig;
         }
-      } catch {
-        this.logger.warn(`Falha ao conectar em ${serverConfig.server} para descobrir "${databaseName}"`);
+      } catch (err) {
+        this.logger.warn(`Falha ao conectar em ${serverConfig.server}: ${(err as Error).message}`);
         try {
           await tempDb.destroy();
         } catch {

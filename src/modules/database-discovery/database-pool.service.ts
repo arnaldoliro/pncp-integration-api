@@ -37,7 +37,6 @@ export class DatabasePoolService implements OnModuleDestroy {
 
   private async criarPool(databaseName: string): Promise<Kysely<Database>> {
     const serverConfig = await this.discovery.encontrarConexao(databaseName);
-
     return new Kysely<Database>({
       dialect: new MssqlDialect({
         tarn: {

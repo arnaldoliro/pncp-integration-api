@@ -8,7 +8,7 @@ export interface PncpLogServicoTable {
   ls_cod_erro: number | null;
   ls_mensagem: string | null;
   ls_url: string | null;
-  ls_dt_registro: Generated<Date>;
+  ls_dt_registro: Date;
   ser_id: number | null;
   ls_descricao: string | null;
   ls_caminho_ftp: string | null;
