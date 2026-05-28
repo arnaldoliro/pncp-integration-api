@@ -7,6 +7,8 @@ import type { VwContratacaoView } from './views/vw-contratacao.js';
 import type { VwDocumentosContratacaoView } from './views/vw-documentos-contratacao.js';
 import type { VwItensContratacaoView } from './views/vw-itens-contratacao.js';
 import type { PncpControleDadosTable } from './pncp-controle-dados.js';
+import type { PncpTabelaItensContratacaoResultadoTable } from './pncp-tabela-itens-contratacao-resultado.js';
+import type { VwResultadoItemContratacaoView } from './views/vw-resultado-itens-contratacao.js';
 
 export interface Database {
   PNCP_SERVICOS: PncpServicosTable;
@@ -18,4 +20,6 @@ export interface Database {
   vw_Documentos_ContratacaoEditalAviso_6_3: VwDocumentosContratacaoView;
   vw_ContratoEditalAviso_Item_6_3: VwItensContratacaoView;
   PNCP_CONTROLE_DADOS: PncpControleDadosTable;
+  PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO: PncpTabelaItensContratacaoResultadoTable;
+  'vw_Resultado_Item_Contratação_6_3_15': VwResultadoItemContratacaoView;
 }

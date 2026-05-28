@@ -76,6 +76,7 @@ export class OrchestratorService {
     let ignorados = 0;
     const conOrgao = parseInt(dto.ORG_COD, 10);
     const metodoServico = config.ser_tipo?.toUpperCase() ?? null;
+    const urlRequerSequencial = config.ser_link.includes('{sequencial}');
 
     await this.gravarLog({
       ls_usuario: dto.usuario,
@@ -112,7 +113,7 @@ export class OrchestratorService {
       let documentosAdicionais: Record<string, unknown>[] = [];
       let primeiroDocumento: Record<string, unknown> | null = null;
       let itensEnviados: Record<string, unknown>[] = [];
-      let pncpResponse: { status: number; body: unknown } | undefined;
+      let pncpResponse: { status: number; body: unknown; location: string | null } | undefined;
 
       try {
         const metodo = config.ser_tipo?.toUpperCase();
@@ -122,7 +123,7 @@ export class OrchestratorService {
           );
         }
 
-        if (metodo === 'POST') {
+        if (metodo === 'POST' && !urlRequerSequencial) {
           const existente = await this.pncpDadosContratacoes.buscarSequencial(
             conCompraId,
             conOrgao,
@@ -139,7 +140,7 @@ export class OrchestratorService {
           }
         }
 
-        if (METODOS_COM_SEQUENCIAL.has(metodo)) {
+        if (METODOS_COM_SEQUENCIAL.has(metodo) || urlRequerSequencial) {
           const sequencialLocal =
             await this.pncpDadosContratacoes.buscarSequencial(
               conCompraId,
@@ -196,13 +197,8 @@ export class OrchestratorService {
           body = buildPayload(config.tel_json_consumo, context);
 
           if (metodo === 'POST') {
-            if (config.ser_arquivo) {
-              const docViewName = config.tel_entidade_doc;
-              if (!docViewName) {
-                throw new InternalServerErrorException(
-                  `tel_entidade_doc não configurado para "${dto.tel_descricao_servico}".`,
-                );
-              }
+            if (config.ser_arquivo === 'S') {
+              const docViewName = config.tel_entidade_doc ?? config.tel_entidade;
               const documentos = await this.viewsReaderService.buscar(docViewName, dto.ORG_COD, conCompraId, db);
               if (documentos.length === 0) {
                 throw new InternalServerErrorException(
@@ -240,75 +236,94 @@ export class OrchestratorService {
         }
 
         if (metodo === 'POST') {
-          const compraUri = (pncpResponse?.body as { compraUri?: string } | null)
-            ?.compraUri;
-          if (!compraUri) {
-            throw new InternalServerErrorException(
-              `Resposta POST sem compraUri para LIC_COD "${conCompraId}". Sequencial não pôde ser salvo.`,
-            );
-          }
-          const parts = compraUri.split('/');
-          const conSequencial = parseInt(parts[parts.length - 1], 10);
-          const conAno = parts[parts.length - 2];
-          if (isNaN(conSequencial) || !conAno) {
-            throw new InternalServerErrorException(
-              `compraUri com formato inesperado na resposta do PNCP: ${compraUri}`,
-            );
-          }
-          await this.pncpDadosContratacoes.gravarSequencial(
-            {
-              con_compra_id: conCompraId,
-              con_orgao: conOrgao,
-              con_sequencial: conSequencial,
-              con_ano: conAno,
-            },
-            db,
-          );
-          lsIdPncp = conSequencial;
+          if (urlRequerSequencial) {
+            const location = pncpResponse?.location ?? null;
+            const locationParts = location?.split('/') ?? [];
+            const sequencialResultado = location
+              ? parseInt(locationParts[locationParts.length - 1], 10)
+              : null;
 
-          if (primeiroDocumento !== null) {
-            await this.pncpDadosContratacoes.gravarDocumento({
-              sin_con_data_alteracao: new Date(),
-              sin_con_ano: conAno,
-              sin_con_numerocompra: String(context['numeroCompra'] ?? ''),
-              sin_con_nome_arquivo: String(primeiroDocumento['TituloDocumento'] ?? ''),
-              sequencialarquivo: null,
+            await this.pncpDadosContratacoes.gravarResultadoItem({
+              sin_ite_numerocompra: String(context['numeroCompra'] ?? conCompraId),
+              sin_ite_numeroitem: String(record['numeroItem'] ?? ''),
+              sin_ite_ano: String(context['ano'] ?? ''),
+              sin_ite_iditemview: String(record['numeroItem'] ?? ''),
+              sin_ite_sequencial: sequencialResultado && !isNaN(sequencialResultado) ? sequencialResultado : null,
+              sin_ite_fornecedor: String(record['niFornecedor'] ?? ''),
             }, db);
-          }
 
-          if (documentosAdicionais.length > 0) {
-            const arquivosBaseUrl = `${url}/${conAno}/${conSequencial}/arquivos`;
-            for (const doc of documentosAdicionais) {
-              const docResp = await this.pncpHttpClient.postArquivo(
-                arquivosBaseUrl,
-                {
-                  buffer: doc['arquivo'] as Buffer,
-                  titulo: String(doc['TituloDocumento'] ?? ''),
-                  tipoDocumentoId: Number(doc['TipoDocumentoId'] ?? 0),
-                  extensao: String(doc['Extencao'] ?? 'pdf'),
-                },
-                db,
+            lsIdPncp = sequencialResultado && !isNaN(sequencialResultado) ? sequencialResultado : null;
+          } else {
+            const compraUri = (pncpResponse?.body as { compraUri?: string } | null)
+              ?.compraUri;
+            if (!compraUri) {
+              throw new InternalServerErrorException(
+                `Resposta POST sem compraUri para LIC_COD "${conCompraId}". Sequencial não pôde ser salvo.`,
               );
-              const docSeq = (docResp.body as { sequencialArquivo?: number } | null)?.sequencialArquivo ?? null;
+            }
+            const parts = compraUri.split('/');
+            const conSequencial = parseInt(parts[parts.length - 1], 10);
+            const conAno = parts[parts.length - 2];
+            if (isNaN(conSequencial) || !conAno) {
+              throw new InternalServerErrorException(
+                `compraUri com formato inesperado na resposta do PNCP: ${compraUri}`,
+              );
+            }
+            await this.pncpDadosContratacoes.gravarSequencial(
+              {
+                con_compra_id: conCompraId,
+                con_orgao: conOrgao,
+                con_sequencial: conSequencial,
+                con_ano: conAno,
+              },
+              db,
+            );
+            lsIdPncp = conSequencial;
+
+            if (primeiroDocumento !== null) {
               await this.pncpDadosContratacoes.gravarDocumento({
                 sin_con_data_alteracao: new Date(),
                 sin_con_ano: conAno,
                 sin_con_numerocompra: String(context['numeroCompra'] ?? ''),
-                sin_con_nome_arquivo: String(doc['TituloDocumento'] ?? ''),
-                sequencialarquivo: docSeq,
+                sin_con_nome_arquivo: String(primeiroDocumento['TituloDocumento'] ?? ''),
+                sequencialarquivo: null,
               }, db);
             }
-          }
 
-          for (const item of itensEnviados) {
-            await this.pncpDadosContratacoes.gravarItem({
-              sin_ite_data_alteracao: new Date(),
-              sin_ite_ano: conAno,
-              sin_ite_numeroitem: String(item['numeroItem'] ?? ''),
-              sin_ite_numeropncp: String(conSequencial),
-              sin_ite_numerocompra: String(context['numeroCompra'] ?? ''),
-              ite_id_situacao: 'ENVIADO',
-            }, db);
+            if (documentosAdicionais.length > 0) {
+              const arquivosBaseUrl = `${url}/${conAno}/${conSequencial}/arquivos`;
+              for (const doc of documentosAdicionais) {
+                const docResp = await this.pncpHttpClient.postArquivo(
+                  arquivosBaseUrl,
+                  {
+                    buffer: doc['arquivo'] as Buffer,
+                    titulo: String(doc['TituloDocumento'] ?? ''),
+                    tipoDocumentoId: Number(doc['TipoDocumentoId'] ?? 0),
+                    extensao: String(doc['Extencao'] ?? 'pdf'),
+                  },
+                  db,
+                );
+                const docSeq = (docResp.body as { sequencialArquivo?: number } | null)?.sequencialArquivo ?? null;
+                await this.pncpDadosContratacoes.gravarDocumento({
+                  sin_con_data_alteracao: new Date(),
+                  sin_con_ano: conAno,
+                  sin_con_numerocompra: String(context['numeroCompra'] ?? ''),
+                  sin_con_nome_arquivo: String(doc['TituloDocumento'] ?? ''),
+                  sequencialarquivo: docSeq,
+                }, db);
+              }
+            }
+
+            for (const item of itensEnviados) {
+              await this.pncpDadosContratacoes.gravarItem({
+                sin_ite_data_alteracao: new Date(),
+                sin_ite_ano: conAno,
+                sin_ite_numeroitem: String(item['numeroItem'] ?? ''),
+                sin_ite_numeropncp: String(conSequencial),
+                sin_ite_numerocompra: String(context['numeroCompra'] ?? ''),
+                ite_id_situacao: 'ENVIADO',
+              }, db);
+            }
           }
         }
 

@@ -9,7 +9,7 @@ export interface PncpServicosTable {
   ser_link: string;                      
   tel_tipo_entidade: string;                          
   tel_entidade_log: string | null;      
-  ser_arquivo: number | null;           
+  ser_arquivo: string | null;
   sin_ser_charset: string | null;       
   sin_id_servico_retificacao: number | null; 
   tel_entidade_doc: string | null;        
