@@ -377,7 +377,11 @@ export class OrchestratorService {
               await this.pncpDadosContratacoes.removerDocumento(conNumeroCompra, seqDoc, db);
             }
           } else {
-            await this.pncpDadosContratacoes.remover(conNumeroCompra, conOrgao, db);
+            const conAno = String(context['ano'] ?? '');
+            await this.pncpDadosContratacoes.remover(conNumeroCompra, conOrgao, conAno, db);
+            await this.pncpDadosContratacoes.removerDocumentosPorCompra(conNumeroCompra, conAno, db);
+            await this.pncpDadosContratacoes.removerItensPorCompra(conNumeroCompra, conAno, db);
+            await this.pncpDadosContratacoes.removerResultadosItensPorCompra(conNumeroCompra, conAno, db);
           }
         }
 

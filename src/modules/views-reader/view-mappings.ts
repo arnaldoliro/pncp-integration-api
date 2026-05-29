@@ -24,4 +24,8 @@ export const VIEW_MAPPINGS: Record<string, ViewMapping> = {
     idColumn: 'CodigoLicitacao',
     orgaoColumn: 'CodigoOrgao',
   },
+  vw_excluir_contratacao_6_3_4: {
+    idColumn: 'CodigoLicitacao',
+    orgaoColumn: 'CodigoOrgao',
+  },
 };

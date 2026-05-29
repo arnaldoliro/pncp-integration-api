@@ -67,6 +67,30 @@ export class PncpDadosContratacoes {
       .execute();
   }
 
+  async removerItensPorCompra(numeroCompra: string, ano: string, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_ITENS_X_CONTRATACAO')
+      .where('sin_ite_numerocompra', '=', numeroCompra)
+      .where('sin_ite_ano', '=', ano)
+      .execute();
+  }
+
+  async removerResultadosItensPorCompra(numeroCompra: string, ano: string, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO')
+      .where('sin_ite_numerocompra', '=', numeroCompra)
+      .where('sin_ite_ano', '=', ano)
+      .execute();
+  }
+
+  async removerDocumentosPorCompra(numeroCompra: string, ano: string, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_CONTRATACAO_DOCUMENTOS')
+      .where('sin_con_numerocompra', '=', numeroCompra)
+      .where('sin_con_ano', '=', ano)
+      .execute();
+  }
+
   async removerDocumento(numeroCompra: string, sequencialDocumento: number, db: Kysely<Database>): Promise<void> {
     await db
       .deleteFrom('PNCP_TABELA_CONTRATACAO_DOCUMENTOS')
@@ -75,11 +99,12 @@ export class PncpDadosContratacoes {
       .execute();
   }
 
-  async remover(conCompraId: string, conOrgao: number, db: Kysely<Database>): Promise<void> {
+  async remover(conCompraId: string, conOrgao: number, conAno: string, db: Kysely<Database>): Promise<void> {
     await db
       .deleteFrom('PNCP_TABELA_CONTRATACOES')
       .where('con_compra_id', '=', conCompraId)
       .where('con_orgao', '=', conOrgao)
+      .where('con_ano', '=', conAno)
       .execute();
   }
 
