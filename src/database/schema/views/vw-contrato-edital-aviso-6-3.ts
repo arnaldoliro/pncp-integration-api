@@ -1,0 +1,33 @@
+export interface VwContratoEditalAviso63View {
+  LIC_COD: number;
+  cnpj: string;
+  cnpjCompra: string;
+  anoCompra: number;
+  sequencialCompra: number;
+  tipoContratoId: number | null;
+  numeroContratoEmpenho: string | null;
+  anoContrato: number | null;
+  processo: string | null;
+  categoriaProcessoId: number | null;
+  receita: string;
+  codigoUnidade: string | null;
+  niFornecedor: string | null;
+  tipoPessoaFornecedor: string | null;
+  nomeRazaoSocialFornecedor: string | null;
+  niFornecedorSubContratado: null;
+  tipoPessoaFornecedorSubContratado: null;
+  nomeRazaoSocialFornecedorSubContratado: null;
+  objetoContrato: string | null;
+  informacaoComplementar: string | null;
+  valorInicial: number | null;
+  numeroParcelas: number | null;
+  valorParcela: number | null;
+  valorGlobal: number | null;
+  valorAcumulado: number | null;
+  dataAssinatura: Date | null;
+  dataVigenciaInicio: Date | null;
+  datavigenciaFim: Date | null;
+  identificadorCipi: null;
+  urlCipi: null;
+  codigoOrgao: number;
+}

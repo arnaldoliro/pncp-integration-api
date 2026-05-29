@@ -9,6 +9,7 @@ import type { VwDocumentosContratacaoView } from './views/vw-documentos-contrata
 import type { VwItensContratacaoView } from './views/vw-itens-contratacao.js';
 import type { PncpControleDadosTable } from './pncp-controle-dados.js';
 import type { PncpTabelaItensContratacaoResultadoTable } from './pncp-tabela-itens-contratacao-resultado.js';
+import type { VwRetificarContratacao632View } from './views/vw-retificar-contratacao-6-3-2.js';
 import type { VwDocumentoContratacao637View } from './views/vw-documento-contratacao-6-3-7.js';
 import type { VwExcluirContratacao634View } from './views/vw-excluir-contratacao-6-3-4.js';
 import type { VwResultadoItemContratacaoView } from './views/vw-resultado-itens-contratacao.js';
@@ -26,6 +27,7 @@ export interface Database {
   LIC_LICITACAO: LicLicitacaoTable;
   PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO: PncpTabelaItensContratacaoResultadoTable;
   'vw_Resultado_Item_Contratação_6_3_15': VwResultadoItemContratacaoView;
+  vw_Retificar_Contratacao_6_3_2: VwRetificarContratacao632View;
   vw_documento_contratacao_6_3_7: VwDocumentoContratacao637View;
   vw_excluir_contratacao_6_3_4: VwExcluirContratacao634View;
 }

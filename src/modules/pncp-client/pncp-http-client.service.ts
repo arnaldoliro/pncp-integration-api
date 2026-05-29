@@ -69,7 +69,8 @@ export class PncpHttpClient {
     const timeoutId = setTimeout(() => controller.abort(), env.pncp.timeout);
 
     try {
-      const response = await fetch(`${env.pncp.authUrl}/v1/usuarios/login`, {
+      const authUrl = `${env.pncp.authUrl}/v1/usuarios/login`;
+      const response = await fetch(authUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify({ login: creds.con_usuario, senha: creds.con_senha }),
@@ -90,6 +91,13 @@ export class PncpHttpClient {
       const token = authHeader.slice('Bearer '.length);
       this.tokenCache.set(db, { token, expiresAt: this.parseJwtExpiry(token) });
       return token;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      const err = error as NodeJS.ErrnoException;
+      const causa = err.cause ? String((err.cause as NodeJS.ErrnoException).code ?? err.cause) : err.message;
+      throw new InternalServerErrorException(
+        `Não foi possível conectar ao servidor PNCP para autenticação. Verifique a URL e a conectividade de rede. Detalhe: ${causa}`,
+      );
     } finally {
       clearTimeout(timeoutId);
     }

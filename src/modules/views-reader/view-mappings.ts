@@ -4,6 +4,10 @@ export interface ViewMapping {
 }
 
 export const VIEW_MAPPINGS: Record<string, ViewMapping> = {
+  vw_Retificar_Contratacao_6_3_2: {
+    idColumn: 'LIC_COD',
+    orgaoColumn: 'ORG_COD',
+  },
   vw_Inserir_Contratacao_6_3_1: {
     idColumn: 'LIC_COD',
     orgaoColumn: 'codigoOrgao',
