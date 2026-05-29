@@ -69,7 +69,8 @@ export class PncpHttpClient {
     const timeoutId = setTimeout(() => controller.abort(), env.pncp.timeout);
 
     try {
-      const response = await fetch(`${env.pncp.authUrl}/v1/usuarios/login`, {
+      const authUrl = `${env.pncp.authUrl}/v1/usuarios/login`;
+      const response = await fetch(authUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify({ login: creds.con_usuario, senha: creds.con_senha }),
@@ -90,6 +91,13 @@ export class PncpHttpClient {
       const token = authHeader.slice('Bearer '.length);
       this.tokenCache.set(db, { token, expiresAt: this.parseJwtExpiry(token) });
       return token;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      const err = error as NodeJS.ErrnoException;
+      const causa = err.cause ? String((err.cause as NodeJS.ErrnoException).code ?? err.cause) : err.message;
+      throw new InternalServerErrorException(
+        `Não foi possível conectar ao servidor PNCP para autenticação. Verifique a URL e a conectividade de rede. Detalhe: ${causa}`,
+      );
     } finally {
       clearTimeout(timeoutId);
     }
@@ -117,7 +125,7 @@ export class PncpHttpClient {
     db: Kysely<Database>,
     body?: unknown,
     extraHeaders?: Record<string, string>,
-  ): Promise<{ status: number; body: unknown }> {
+  ): Promise<{ status: number; body: unknown; location: string | null }> {
     const token = await this.authenticate(db);
     let lastError: Error | undefined;
 
@@ -155,7 +163,7 @@ export class PncpHttpClient {
           );
         }
 
-        return { status: response.status, body: text ? (JSON.parse(text) as unknown) : null };
+        return { status: response.status, body: text ? (JSON.parse(text) as unknown) : null, location: response.headers.get('location') };
       } catch (error) {
         if (error instanceof HttpException) throw error;
         lastError = error as Error;
@@ -172,23 +180,23 @@ export class PncpHttpClient {
     );
   }
 
-  post(url: string, body: unknown, db: Kysely<Database>): Promise<{ status: number; body: unknown }> {
+  post(url: string, body: unknown, db: Kysely<Database>): Promise<{ status: number; body: unknown; location: string | null }> {
     return this.request('POST', url, db, body);
   }
 
-  put(url: string, body: unknown, db: Kysely<Database>): Promise<{ status: number; body: unknown }> {
+  put(url: string, body: unknown, db: Kysely<Database>): Promise<{ status: number; body: unknown; location: string | null }> {
     return this.request('PUT', url, db, body);
   }
 
-  patch(url: string, body: unknown, db: Kysely<Database>): Promise<{ status: number; body: unknown }> {
+  patch(url: string, body: unknown, db: Kysely<Database>): Promise<{ status: number; body: unknown; location: string | null }> {
     return this.request('PATCH', url, db, body);
   }
 
-  delete(url: string, db: Kysely<Database>, body?: unknown): Promise<{ status: number; body: unknown }> {
+  delete(url: string, db: Kysely<Database>, body?: unknown): Promise<{ status: number; body: unknown; location: string | null }> {
     return this.request('DELETE', url, db, body);
   }
 
-  get(url: string, db: Kysely<Database>): Promise<{ status: number; body: unknown }> {
+  get(url: string, db: Kysely<Database>): Promise<{ status: number; body: unknown; location: string | null }> {
     return this.request('GET', url, db);
   }
 
@@ -199,7 +207,7 @@ export class PncpHttpClient {
     db: Kysely<Database>,
     nomeJsonField: string,
     nomeArqField: string,
-  ): Promise<{ status: number; body: unknown }> {
+  ): Promise<{ status: number; body: unknown; location: string | null }> {
     const form = new FormData();
     form.append(nomeJsonField, new Blob([JSON.stringify(jsonBody)], { type: 'application/json' }));
     const nomeArq = `${normalizarNomeArquivo(documento.titulo)}.${documento.extensao}`;
@@ -213,7 +221,7 @@ export class PncpHttpClient {
     });
   }
 
-  postArquivo(url: string, arquivo: DocumentoInfo, db: Kysely<Database>): Promise<{ status: number; body: unknown }> {
+  postArquivo(url: string, arquivo: DocumentoInfo, db: Kysely<Database>): Promise<{ status: number; body: unknown; location: string | null }> {
     const form = new FormData();
     const bufArq = Buffer.isBuffer(arquivo.buffer) ? arquivo.buffer : Buffer.from(arquivo.buffer as unknown as ArrayBuffer);
     const isZlibArq = bufArq[0] === 0x78 && (bufArq[1] === 0x9c || bufArq[1] === 0xda || bufArq[1] === 0x01 || bufArq[1] === 0x5e);

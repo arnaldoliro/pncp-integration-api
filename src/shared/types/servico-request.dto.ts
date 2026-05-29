@@ -29,4 +29,8 @@ export class ServicoRequestDto {
   @IsString()
   @IsOptional()
   justificativa?: string;
+
+  @IsString()
+  @IsOptional()
+  NomeDocumento?: string;
 }

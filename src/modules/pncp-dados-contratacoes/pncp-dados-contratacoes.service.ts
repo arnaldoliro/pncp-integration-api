@@ -16,7 +16,16 @@ export interface GravarItemDto {
   sin_ite_numeroitem: string;
   sin_ite_numeropncp: string;
   sin_ite_numerocompra: string;
-  ite_id_situacao: string;
+  ite_id_situacao: string | null;
+}
+
+export interface GravarResultadoItemDto {
+  sin_ite_numerocompra: string;
+  sin_ite_numeroitem: string;
+  sin_ite_ano: string;
+  sin_ite_iditemview: string;
+  sin_ite_sequencial: number | null;
+  sin_ite_fornecedor: string;
 }
 
 export interface GravarSequencialDto {
@@ -24,6 +33,7 @@ export interface GravarSequencialDto {
   con_orgao: number;
   con_sequencial: number;
   con_ano: string;
+  CON_DATAENVIO: Date;
 }
 
 @Injectable()
@@ -52,15 +62,49 @@ export class PncpDadosContratacoes {
         con_orgao: data.con_orgao,
         con_sequencial: data.con_sequencial,
         con_ano: data.con_ano,
+        CON_DATAENVIO: data.CON_DATAENVIO,
       })
       .execute();
   }
 
-  async remover(conCompraId: string, conOrgao: number, db: Kysely<Database>): Promise<void> {
+  async removerItensPorCompra(numeroCompra: string, ano: string, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_ITENS_X_CONTRATACAO')
+      .where('sin_ite_numerocompra', '=', numeroCompra)
+      .where('sin_ite_ano', '=', ano)
+      .execute();
+  }
+
+  async removerResultadosItensPorCompra(numeroCompra: string, ano: string, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO')
+      .where('sin_ite_numerocompra', '=', numeroCompra)
+      .where('sin_ite_ano', '=', ano)
+      .execute();
+  }
+
+  async removerDocumentosPorCompra(numeroCompra: string, ano: string, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_CONTRATACAO_DOCUMENTOS')
+      .where('sin_con_numerocompra', '=', numeroCompra)
+      .where('sin_con_ano', '=', ano)
+      .execute();
+  }
+
+  async removerDocumento(numeroCompra: string, sequencialDocumento: number, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_CONTRATACAO_DOCUMENTOS')
+      .where('sin_con_numerocompra', '=', numeroCompra)
+      .where('sequencialarquivo', '=', sequencialDocumento)
+      .execute();
+  }
+
+  async remover(conCompraId: string, conOrgao: number, conAno: string, db: Kysely<Database>): Promise<void> {
     await db
       .deleteFrom('PNCP_TABELA_CONTRATACOES')
       .where('con_compra_id', '=', conCompraId)
       .where('con_orgao', '=', conOrgao)
+      .where('con_ano', '=', conAno)
       .execute();
   }
 
@@ -73,6 +117,22 @@ export class PncpDadosContratacoes {
         sin_con_numerocompra: data.sin_con_numerocompra.substring(0, 35),
         sin_con_nome_arquivo: data.sin_con_nome_arquivo.substring(0, 30),
         sequencialarquivo: data.sequencialarquivo,
+      })
+      .execute();
+  }
+
+  async gravarResultadoItem(data: GravarResultadoItemDto, db: Kysely<Database>): Promise<void> {
+    await db
+      .insertInto('PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO')
+      .values({
+        sin_ite_numerocompra: data.sin_ite_numerocompra.substring(0, 35),
+        sin_ite_numeroitem: data.sin_ite_numeroitem.substring(0, 20),
+        sin_ite_ano: data.sin_ite_ano.substring(0, 4),
+        sin_ite_data_alteracao: new Date(),
+        sin_ite_iditemview: data.sin_ite_iditemview.substring(0, 20),
+        sin_ite_sequencial: data.sin_ite_sequencial,
+        SIN_ITE_DATAENVIO: new Date(),
+        sin_ite_fornecedor: data.sin_ite_fornecedor.substring(0, 50),
       })
       .execute();
   }
