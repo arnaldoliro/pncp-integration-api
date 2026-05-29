@@ -70,6 +70,9 @@ export class OrchestratorService {
       dto.LIC_COD,
       db,
     );
+    const recordsFiltrados = dto.NomeDocumento
+      ? records.filter(r => String(r['NomeDocumento'] ?? '') === dto.NomeDocumento)
+      : records;
     const detalhes: OrchestratorDetalhe[] = [];
     let enviados = 0;
     let erros = 0;
@@ -77,6 +80,11 @@ export class OrchestratorService {
     const conOrgao = parseInt(dto.ORG_COD, 10);
     const metodoServico = config.ser_tipo?.toUpperCase() ?? null;
     const urlRequerSequencial = config.ser_link.includes('{sequencial}');
+
+    const dtoLicRow = dto.LIC_COD
+      ? await db.selectFrom('LIC_LICITACAO').select('LIC_NUMERO').where('LIC_COD', '=', parseInt(dto.LIC_COD, 10)).executeTakeFirst()
+      : null;
+    const dtoNumeroCompra = dtoLicRow?.LIC_NUMERO ?? dto.LIC_COD ?? null;
 
     await this.gravarLog({
       ls_usuario: dto.usuario,
@@ -89,10 +97,10 @@ export class OrchestratorService {
       ser_id: config.ser_id,
       ls_orgao: conOrgao || null,
       ls_id_pncp: null,
-      ls_numeroprocesso: dto.LIC_COD ?? null,
+      ls_numeroprocesso: dtoNumeroCompra,
     }, db);
 
-    for (const record of records) {
+    for (const record of recordsFiltrados) {
       const conCompraId = String(record['LIC_COD'] ?? dto.LIC_COD ?? '');
       const licRow = await db
         .selectFrom('LIC_LICITACAO')
@@ -229,78 +237,25 @@ export class OrchestratorService {
                   config.sin_ser_nome_cabecalho_arquivo ?? 'documento',
                 );
               } else {
-                // 6.3.6: upload puro — postArquivo para cada documento da tel_entidade
-                const documentos = await this.viewsReaderService.buscar(config.tel_entidade, dto.ORG_COD, conCompraId, db);
-                if (documentos.length === 0) {
-                  throw new InternalServerErrorException(
-                    `Nenhum documento encontrado na view "${config.tel_entidade}" para LIC_COD "${conCompraId}".`,
-                  );
-                }
-                for (const doc of documentos) {
-                  const tituloDoc = String(doc['TituloDocumento'] ?? '');
-                  try {
-                    const docResp = await this.pncpHttpClient.postArquivo(url, {
-                      buffer: doc['arquivo'] as Buffer,
-                      titulo: tituloDoc,
-                      tipoDocumentoId: Number(doc['TipoDocumentoId'] ?? 0),
-                      extensao: String(doc['Extencao'] ?? 'pdf'),
-                    }, db);
-                    const docLocParts = docResp.location?.split('/') ?? [];
-                    const docSeq = docResp.location ? parseInt(docLocParts[docLocParts.length - 1], 10) : null;
-                    await this.pncpDadosContratacoes.gravarDocumento({
-                      sin_con_data_alteracao: new Date(),
-                      sin_con_ano: String(context['ano'] ?? ''),
-                      sin_con_numerocompra: conNumeroCompra,
-                      sin_con_nome_arquivo: tituloDoc,
-                      sequencialarquivo: docSeq && !isNaN(docSeq) ? docSeq : null,
-                    }, db);
-                    pncpResponse = docResp;
-                    lsIdPncp = docSeq && !isNaN(docSeq) ? docSeq : null;
-                    await this.gravarLog({
-                      ls_usuario: dto.usuario,
-                      ls_acao: 'POST',
-                      ls_url: url,
-                      ls_cod_erro: docResp.status,
-                      ls_mensagem: `Documento "${tituloDoc}" enviado com sucesso.`,
-                      ls_descricao: 'Ação Realizada com Sucesso!',
-                      ls_json: null,
-                      ser_id: config.ser_id,
-                      ls_orgao: conOrgao || null,
-                      ls_id_pncp: lsIdPncp,
-                      ls_numeroprocesso: conNumeroCompra,
-                    }, db);
-                    enviados++;
-                  } catch (docError) {
-                    erros++;
-                    let docMensagemErro: string;
-                    let docDescricaoErro: string | null;
-                    let docCodErro: number;
-                    if (docError instanceof HttpException) {
-                      const resp = docError.getResponse() as { body?: string; message?: string | string[] };
-                      const bodyText = resp.body ?? (Array.isArray(resp.message) ? resp.message.join(', ') : resp.message) ?? docError.message;
-                      docMensagemErro = `HTTP ${docError.getStatus()}: ${bodyText}`;
-                      docDescricaoErro = resp.body ?? (Array.isArray(resp.message) ? resp.message.join(', ') : (resp.message ?? docError.message));
-                      docCodErro = docError.getStatus();
-                    } else {
-                      docMensagemErro = (docError as Error).message;
-                      docDescricaoErro = docMensagemErro;
-                      docCodErro = 500;
-                    }
-                    await this.gravarLog({
-                      ls_usuario: dto.usuario,
-                      ls_acao: 'ERRO',
-                      ls_url: url,
-                      ls_cod_erro: docCodErro,
-                      ls_mensagem: docMensagemErro,
-                      ls_descricao: docDescricaoErro,
-                      ls_json: null,
-                      ser_id: config.ser_id,
-                      ls_orgao: conOrgao || null,
-                      ls_id_pncp: null,
-                      ls_numeroprocesso: conNumeroCompra,
-                    }, db);
-                  }
-                }
+                // 6.3.6: upload puro — o outer loop já itera um documento por vez
+                const tituloDoc = String(record['TituloDocumento'] ?? '');
+                const docResp = await this.pncpHttpClient.postArquivo(url, {
+                  buffer: record['arquivo'] as Buffer,
+                  titulo: tituloDoc,
+                  tipoDocumentoId: Number(record['TipoDocumentoId'] ?? 0),
+                  extensao: String(record['Extencao'] ?? 'pdf'),
+                }, db);
+                const docLocParts = docResp.location?.split('/') ?? [];
+                const docSeq = docResp.location ? parseInt(docLocParts[docLocParts.length - 1], 10) : null;
+                await this.pncpDadosContratacoes.gravarDocumento({
+                  sin_con_data_alteracao: new Date(),
+                  sin_con_ano: String(context['ano'] ?? ''),
+                  sin_con_numerocompra: conNumeroCompra,
+                  sin_con_nome_arquivo: tituloDoc,
+                  sequencialarquivo: docSeq && !isNaN(docSeq) ? docSeq : null,
+                }, db);
+                pncpResponse = docResp;
+                lsIdPncp = docSeq && !isNaN(docSeq) ? docSeq : null;
               }
             } else {
               pncpResponse = await this.pncpHttpClient.post(url, body, db);
@@ -416,7 +371,14 @@ export class OrchestratorService {
         }
 
         if (metodo === 'DELETE') {
-          await this.pncpDadosContratacoes.remover(conNumeroCompra, conOrgao, db);
+          if (config.ser_link.includes('/arquivos/')) {
+            const seqDoc = Number(record['sequencialDocumento']);
+            if (!isNaN(seqDoc)) {
+              await this.pncpDadosContratacoes.removerDocumento(conNumeroCompra, seqDoc, db);
+            }
+          } else {
+            await this.pncpDadosContratacoes.remover(conNumeroCompra, conOrgao, db);
+          }
         }
 
         sucesso = true;
@@ -496,10 +458,10 @@ export class OrchestratorService {
       ser_id: config.ser_id,
       ls_orgao: conOrgao || null,
       ls_id_pncp: null,
-      ls_numeroprocesso: dto.LIC_COD ?? null,
+      ls_numeroprocesso: dtoNumeroCompra,
     }, db);
 
-    return { total: records.length, enviados, erros, ignorados, detalhes };
+    return { total: recordsFiltrados.length, enviados, erros, ignorados, detalhes };
   }
 
   private async gravarLog(dados: GravarLogDto, db: Kysely<Database>): Promise<void> {

@@ -67,6 +67,14 @@ export class PncpDadosContratacoes {
       .execute();
   }
 
+  async removerDocumento(numeroCompra: string, sequencialDocumento: number, db: Kysely<Database>): Promise<void> {
+    await db
+      .deleteFrom('PNCP_TABELA_CONTRATACAO_DOCUMENTOS')
+      .where('sin_con_numerocompra', '=', numeroCompra)
+      .where('sequencialarquivo', '=', sequencialDocumento)
+      .execute();
+  }
+
   async remover(conCompraId: string, conOrgao: number, db: Kysely<Database>): Promise<void> {
     await db
       .deleteFrom('PNCP_TABELA_CONTRATACOES')
