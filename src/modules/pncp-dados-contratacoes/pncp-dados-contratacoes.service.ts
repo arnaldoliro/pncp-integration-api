@@ -16,7 +16,7 @@ export interface GravarItemDto {
   sin_ite_numeroitem: string;
   sin_ite_numeropncp: string;
   sin_ite_numerocompra: string;
-  ite_id_situacao: string;
+  ite_id_situacao: string | null;
 }
 
 export interface GravarResultadoItemDto {
@@ -33,6 +33,7 @@ export interface GravarSequencialDto {
   con_orgao: number;
   con_sequencial: number;
   con_ano: string;
+  CON_DATAENVIO: Date;
 }
 
 @Injectable()
@@ -61,6 +62,7 @@ export class PncpDadosContratacoes {
         con_orgao: data.con_orgao,
         con_sequencial: data.con_sequencial,
         con_ano: data.con_ano,
+        CON_DATAENVIO: data.CON_DATAENVIO,
       })
       .execute();
   }

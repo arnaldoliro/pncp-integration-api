@@ -1,3 +1,4 @@
+import type { LicLicitacaoTable } from './lic-licitacao.js';
 import type { PncpServicosTable } from './pncp-servicos.js';
 import type { PncpLogServicoTable } from './pncp-log.js';
 import type { PncpTabelaContratacoesTable } from './pncp-tabela-contratacoes.js';
@@ -20,6 +21,7 @@ export interface Database {
   vw_Documentos_ContratacaoEditalAviso_6_3: VwDocumentosContratacaoView;
   vw_ContratoEditalAviso_Item_6_3: VwItensContratacaoView;
   PNCP_CONTROLE_DADOS: PncpControleDadosTable;
+  LIC_LICITACAO: LicLicitacaoTable;
   PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO: PncpTabelaItensContratacaoResultadoTable;
   'vw_Resultado_Item_Contratação_6_3_15': VwResultadoItemContratacaoView;
 }
