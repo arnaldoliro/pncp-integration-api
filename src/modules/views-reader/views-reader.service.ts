@@ -22,6 +22,8 @@ export class ViewsReaderService {
     }
 
     try {
+      console.log(`[ViewsReader] buscar: view="${viewName}" orgaoColumn="${mapping.orgaoColumn}" orgaoId="${orgaoId}" idColumn="${mapping.idColumn}" id="${id}"`);
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let query = (db.selectFrom(sql.table(viewName) as any) as any)
         .selectAll()
@@ -31,7 +33,16 @@ export class ViewsReaderService {
         query = query.where(sql.ref(mapping.idColumn), '=', id);
       }
 
-      return await query.execute();
+      const compiled = query.compile();
+      console.log(`[ViewsReader] SQL compilado:`, compiled.sql);
+      console.log(`[ViewsReader] parâmetros:`, compiled.parameters);
+
+      const results = await query.execute();
+      console.log(`[ViewsReader] buscar: ${results.length} registro(s) retornado(s) da view "${viewName}"`);
+      if (results.length > 0) {
+        console.log(`[ViewsReader] primeiro registro:`, JSON.stringify(results[0]));
+      }
+      return results;
     } catch (error) {
       throw new InternalServerErrorException(
         `Falha ao consultar view "${viewName}": ${(error as Error).message}`,

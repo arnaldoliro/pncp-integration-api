@@ -58,5 +58,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Claude
 CLAUDE.md
 
+# Scripts de desenvolvimento local (não vão para o repositório)
+scripts/
+
 # Docs
 docs/

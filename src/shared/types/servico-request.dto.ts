@@ -19,7 +19,7 @@ export class ServicoRequestDto {
 
   @IsString()
   @IsOptional()
-  LIC_COD?: string;
+  ID?: string;
 
   @IsOptional()
   @ValidateIf((o: ServicoRequestDto) => o.ID2 !== null)
