@@ -1,9 +1,12 @@
 import type { LicLicitacaoTable } from './lic-licitacao.js';
+import type { CtpContratosTable } from './ctp-contratos.js';
 import type { PncpServicosTable } from './pncp-servicos.js';
 import type { PncpLogServicoTable } from './pncp-log.js';
 import type { PncpTabelaContratacoesTable } from './pncp-tabela-contratacoes.js';
 import type { PncpTabelaContratacaoDocumentosTable } from './pncp-tabela-contratacao-documentos.js';
 import type { PncpTabelaItensContratacaoTable } from './pncp-tabela-itens-contratacao.js';
+import type { PncpTabelaContratosTable } from './pncp-tabela-contratos.js';
+import type { PncpTabelaDocumentosContratoTable } from './pncp-tabela-documentos-contrato.js';
 import type { VwContratacaoView } from './views/vw-contratacao.js';
 import type { VwDocumentosContratacaoView } from './views/vw-documentos-contratacao.js';
 import type { VwItensContratacaoView } from './views/vw-itens-contratacao.js';
@@ -13,6 +16,10 @@ import type { VwRetificarContratacao632View } from './views/vw-retificar-contrat
 import type { VwDocumentoContratacao637View } from './views/vw-documento-contratacao-6-3-7.js';
 import type { VwExcluirContratacao634View } from './views/vw-excluir-contratacao-6-3-4.js';
 import type { VwResultadoItemContratacaoView } from './views/vw-resultado-itens-contratacao.js';
+import type { VwContrato651View } from './views/vw-contrato-6-5-1.js';
+import type { VwContrato652View } from './views/vw-contrato-6-5-2.js';
+import type { VwExcluirContrato653View } from './views/vw-excluir-contrato-6-5-3.js';
+import type { VwDocumentoContrato654View } from './views/vw-documento-contrato-6-5-4.js';
 
 export interface Database {
   PNCP_SERVICOS: PncpServicosTable;
@@ -20,14 +27,21 @@ export interface Database {
   PNCP_TABELA_CONTRATACOES: PncpTabelaContratacoesTable;
   PNCP_TABELA_CONTRATACAO_DOCUMENTOS: PncpTabelaContratacaoDocumentosTable;
   PNCP_TABELA_ITENS_X_CONTRATACAO: PncpTabelaItensContratacaoTable;
+  PNCP_TABELA_CONTRATO: PncpTabelaContratosTable;
+  PNCP_TABELA_DOCUMENTOS_CONTRATO: PncpTabelaDocumentosContratoTable;
   vw_Inserir_Contratacao_6_3_1: VwContratacaoView;
   vw_Documentos_ContratacaoEditalAviso_6_3: VwDocumentosContratacaoView;
   vw_ContratoEditalAviso_Item_6_3: VwItensContratacaoView;
   PNCP_CONTROLE_DADOS: PncpControleDadosTable;
   LIC_LICITACAO: LicLicitacaoTable;
+  CTP_CONTRATOS: CtpContratosTable;
   PNCP_TABELA_ITENS_X_CONTRATACAO_RESULTADO: PncpTabelaItensContratacaoResultadoTable;
   'vw_Resultado_Item_Contratação_6_3_15': VwResultadoItemContratacaoView;
   vw_Retificar_Contratacao_6_3_2: VwRetificarContratacao632View;
   vw_documento_contratacao_6_3_7: VwDocumentoContratacao637View;
   vw_excluir_contratacao_6_3_4: VwExcluirContratacao634View;
+  vw_Contrato_6_5_1: VwContrato651View;
+  vw_Contrato_6_5_2: VwContrato652View;
+  vw_excluir_contrato_6_5_3: VwExcluirContrato653View;
+  vw_Documento_Contrato_6_5_4: VwDocumentoContrato654View;
 }

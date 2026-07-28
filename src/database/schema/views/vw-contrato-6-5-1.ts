@@ -1,0 +1,36 @@
+export interface VwContrato651View {
+  CTR_COD: number;
+  codigoOrgao: number;
+  cnpj: string;
+  cnpjCompra: string | null;
+  anoCompra: number | null;
+  LIC_COD: number | null;
+  sequencialCompra: number | null;
+  tipoContratoId: number | null;
+  numeroContratoEmpenho: string | null;
+  anoContrato: number | null;
+  processo: string | null;
+  categoriaProcessoId: number | null;
+  receita: string | null;
+  codigoUnidade: string | null;
+  niFornecedor: string | null;
+  tipoPessoaFornecedor: string | null;
+  nomeRazaoSocialFornecedor: string | null;
+  niFornecedorSubContratado: number | null;
+  tipoPessoaFornecedorSubContratado: number | null;
+  nomeRazaoSocialFornecedorSubContratado: number | null;
+  objetoContrato: string | null;
+  informacaoComplementar: string | null;
+  valorInicial: number | null;
+  numeroParcelas: number | null;
+  valorParcela: number | null;
+  valorGlobal: number | null;
+  valorAcumulado: number | null;
+  dataAssinatura: Date | null;
+  dataVigenciaInicio: Date | null;
+  datavigenciaFim: Date | null;
+  identificadorCipi: number | null;
+  urlCipi: number | null;
+  frutoAdesao: boolean | null;
+  temRemanejamento: boolean | null;
+}

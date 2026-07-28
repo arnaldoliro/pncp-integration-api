@@ -32,4 +32,20 @@ export const VIEW_MAPPINGS: Record<string, ViewMapping> = {
     idColumn: 'CodigoLicitacao',
     orgaoColumn: 'CodigoOrgao',
   },
+  vw_Contrato_6_5_1: {
+    idColumn: 'CTR_COD',
+    orgaoColumn: 'codigoOrgao',
+  },
+  vw_Contrato_6_5_2: {
+    idColumn: 'CTR_COD',
+    orgaoColumn: 'codigoOrgao',
+  },
+  vw_excluir_contrato_6_5_3: {
+    idColumn: 'CodigoContrato',
+    orgaoColumn: 'CodigoOrgao',
+  },
+  vw_Documento_Contrato_6_5_4: {
+    idColumn: 'CTR_COD',
+    orgaoColumn: 'codigoOrgao',
+  },
 };
