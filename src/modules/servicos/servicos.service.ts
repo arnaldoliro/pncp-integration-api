@@ -22,4 +22,12 @@ export class ServicosService {
 
     return servico;
   }
+
+  async listar(db: Kysely<Database>): Promise<{ tel_descricao_servico: string }[]> {
+    return db
+      .selectFrom('PNCP_SERVICOS')
+      .select('tel_descricao_servico')
+      .orderBy('tel_descricao_servico', 'asc')
+      .execute();
+  }
 }

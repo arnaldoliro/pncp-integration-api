@@ -42,8 +42,8 @@ export class OrchestratorService {
     private readonly databasePool: DatabasePoolService,
   ) {}
 
-  async executar(dto: ServicoRequestDto): Promise<OrchestratorResult> {
-    const db: Kysely<Database> = await this.databasePool.obterDatabase(dto.database);
+  async executar(dto: ServicoRequestDto, database: string): Promise<OrchestratorResult> {
+    const db: Kysely<Database> = await this.databasePool.obterDatabase(database);
 
     const config = await this.servicosService.resolverPorNome(
       dto.tel_descricao_servico,

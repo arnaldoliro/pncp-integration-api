@@ -11,7 +11,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
 
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        frameAncestors: ["'none'"],
+      },
+    },
+  }));
 
   app.setGlobalPrefix('api');
 

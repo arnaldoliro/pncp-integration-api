@@ -14,10 +14,6 @@ export class ServicoRequestDto {
   ORG_COD!: string;
 
   @IsString()
-  @IsNotEmpty()
-  database!: string;
-
-  @IsString()
   @IsOptional()
   ID?: string;
 
