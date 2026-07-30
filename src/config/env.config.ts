@@ -90,9 +90,7 @@ function buildEnv() {
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
     : false;
 
-  const apiKey = requireEnv('API_KEY', errors);
-
-  return { port, nodeEnv, servers, pncp, allowedOrigins, apiKey };
+  return { port, nodeEnv, servers, pncp, allowedOrigins };
 }
 
 export const env = buildEnv();

@@ -1,98 +1,95 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# PNCP Integration API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend NestJS que serve um frontend Next.js embutido como iframe dentro do Maker (sistema externo). O frontend aciona esta API para buscar dados no banco SQL Server via views configuráveis, enviar ao PNCP e registrar o resultado.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Arquitetura
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```
+Maker (sistema externo)
+  └── abre iframe com ?token=<jwt-30s>
+        └── Next.js (frontend puro)
+              ├── POST /api/auth/sessao  → troca token curto por sessão (1h)
+              ├── GET  /api/servicos     → lista serviços disponíveis
+              └── POST /api/servicos     → executa envio ao PNCP
+                        └── NestJS → SQL Server → PNCP
 ```
 
-## Compile and run the project
+**Stack:** NestJS 11 · TypeScript strict · Kysely · SQL Server (tedious + tarn) · @nestjs/jwt · fetch nativo
+
+## Como rodar localmente
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+cp .env.example .env   # preencher variáveis
+npm run start:dev
 ```
 
-## Run tests
+## Variáveis de ambiente
 
-```bash
-# unit tests
-$ npm run test
+```env
+NODE_ENV=development
+PORT=3000
 
-# e2e tests
-$ npm run test:e2e
+ALLOWED_ORIGINS=http://localhost:3001
 
-# test coverage
-$ npm run test:cov
+# Servidores SQL Server (adicionar blocos conforme necessário)
+DB_SERVER_1=
+DB_PORT_1=1433
+DB_USER_1=
+DB_PASSWORD_1=
+
+DB_ENCRYPT=true
+DB_TRUST_SERVER_CERT=true
+
+PNCP_BASE_URL=https://treina.pncp.gov.br/api/pncp
+PNCP_TIMEOUT=30000
+PNCP_RETRY_ATTEMPTS=3
+PNCP_AUTH_URL=https://treina.pncp.gov.br/api/pncp
 ```
 
-## Deployment
+> O segredo JWT **não** é variável de ambiente — é armazenado em `PNCP_CONTROLE_DADOS.con_jwt_secret` no banco de cada cliente.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Endpoints
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### `POST /api/auth/sessao`
+Troca o token de entrada (30s, gerado pelo Maker) por um token de sessão (1h).
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```json
+// Request
+{ "token": "<jwt-30s>" }
+
+// Response
+{ "token": "<jwt-sessao-1h>" }
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### `GET /api/servicos`
+Lista os serviços disponíveis para o banco do usuário autenticado.
 
-## Resources
+```
+Authorization: Bearer <token-sessao>
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### `POST /api/servicos`
+Executa um serviço de envio ao PNCP.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+Authorization: Bearer <token-sessao>
+```
 
-## Support
+```json
+{
+  "usuario": 1,
+  "tel_descricao_servico": "Inserir Contratação",
+  "ORG_COD": "12345678000100",
+  "ID": "4567",
+  "justificativa": "Texto opcional (obrigatório apenas para DELETE)"
+}
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Autenticação JWT
 
-## Stay in touch
+O `database` do cliente viaja no token JWT — nunca no body da requisição. Cada banco tem seu próprio `con_jwt_secret` em `PNCP_CONTROLE_DADOS`. O Maker lê esse segredo e o usa para assinar o token de entrada; o NestJS valida com o mesmo segredo buscado do banco.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Documentação interna
 
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Consulte `CLAUDE.md` para documentação técnica completa: arquitetura, fluxos, regras de banco, segurança e padrão de views.
